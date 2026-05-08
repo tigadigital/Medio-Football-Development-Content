@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Medio Football Development - Content Calendar</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <button class="sidebar-toggle" id="sidebarToggleBtn" type="button" aria-label="Toggle sidebar">
+    ☰
+  </button>
+
+  <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
+
+  <div class="app" id="appLayout">
+    <aside class="sidebar" id="sidebar">
+      <button class="sidebar-close" id="sidebarCloseBtn" type="button" aria-label="Close sidebar">
+        ×
+      </button>
+
+      <div class="brand brand-full">
+        <div class="brand-logo-wide">
+          <img src="assets/logo-medio.png" alt="Medio Football Development Logo" />
+        </div>
+
+        <p class="brand-subtitle">Content Calendar System</p>
+      </div>
+
+      <p class="menu-label">Main Menu</p>
+      <ul class="nav-list">
+        <li class="nav-item active">
+          <a href="#" data-page="dashboard">⚽ Dashboard</a>
+        </li>
+        <li class="nav-item">
+          <a href="#" data-page="database">🗂 Database Konten</a>
+        </li>
+        <li class="nav-item">
+          <a href="#" data-page="calendar">📅 Calendar</a>
+        </li>
+        <li class="nav-item">
+          <a href="#" data-page="kanban">📌 Kanban Workflow</a>
+        </li>
+      </ul>
+
+      <p class="menu-label">Management</p>
+      <ul class="nav-list">
+        <li class="nav-item">
+          <a href="#" data-page="analytics">📊 Analytics</a>
+        </li>
+        <li class="nav-item">
+          <a href="#" data-page="settings">⚙ Settings</a>
+        </li>
+      </ul>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div class="page-title">
+          <span class="eyebrow">Medio Football Development</span>
+          <h2 id="pageHeading">Dashboard</h2>
+          <p id="pageDescription">Pantau ringkasan aktivitas content calendar Medio Football Development.</p>
+        </div>
+
+        <div class="top-actions compact-actions">
+          <input
+            class="search-box"
+            type="text"
+            id="searchInput"
+            placeholder="Cari judul, platform, pilar, atau status..."
+          />
+
+          <button class="btn btn-primary" id="openModalBtn">+ Tambah Konten</button>
+        </div>
+      </header>
+
+      <!-- DASHBOARD -->
+      <section class="page active" id="page-dashboard">
+        <section class="grid stats-grid">
+          <article class="card stat-card">
+            <span>Total Konten</span>
+            <h3 id="totalContent">0</h3>
+            <p>Seluruh konten yang tersimpan.</p>
+          </article>
+
+          <article class="card stat-card">
+            <span>Scheduled</span>
+            <h3 id="scheduledContent">0</h3>
+            <p>Konten yang sudah punya jadwal.</p>
+          </article>
+
+          <article class="card stat-card">
+            <span>Need Review</span>
+            <h3 id="reviewContent">0</h3>
+            <p>Konten yang perlu dicek ulang.</p>
+          </article>
+
+          <article class="card stat-card">
+            <span>Posted</span>
+            <h3 id="postedContent">0</h3>
+            <p>Konten yang sudah dipublikasikan.</p>
+          </article>
+        </section>
+
+        <section class="dashboard-grid">
+          <article class="card dashboard-card">
+            <div class="section-header clean-header">
+              <div>
+                <h3>Konten Terdekat</h3>
+                <p>Konten dengan jadwal posting paling dekat.</p>
+              </div>
+            </div>
+
+            <div class="mini-list" id="upcomingContentList"></div>
+          </article>
+
+          <article class="card dashboard-card attention-card">
+            <div class="section-header clean-header">
+              <div>
+                <h3>Perlu Perhatian</h3>
+                <p>Daftar konten atau kondisi yang perlu segera ditindaklanjuti.</p>
+              </div>
+            </div>
+
+            <div class="attention-list" id="attentionList"></div>
+          </article>
+        </section>
+
+        <section class="card dashboard-card quick-summary-card">
+          <div class="section-header clean-header">
+            <div>
+              <h3>Quick Summary</h3>
+              <p>Ringkasan cepat kondisi produksi konten.</p>
+            </div>
+          </div>
+
+          <div class="summary-list summary-grid">
+            <div class="summary-item">
+              <span>Fokus utama</span>
+              <strong id="mainFocusText">-</strong>
+            </div>
+
+            <div class="summary-item">
+              <span>Platform dominan</span>
+              <strong id="dominantPlatformText">-</strong>
+            </div>
+
+            <div class="summary-item">
+              <span>Jenis konten dominan</span>
+              <strong id="dominantTypeText">-</strong>
+            </div>
+          </div>
+        </section>
+      </section>
+
+      <!-- DATABASE -->
+      <section class="page" id="page-database">
+        <section class="card database-card">
+          <div class="section-header">
+            <div>
+              <h3>Database Konten</h3>
+              <p>Kelola seluruh data konten dari satu tempat.</p>
+            </div>
+
+            <div class="filter-group">
+              <select id="statusFilter">
+                <option value="all">Semua Status</option>
+                <option value="Draft">Draft</option>
+                <option value="Review">Review</option>
+                <option value="Scheduled">Scheduled</option>
+                <option value="Posted">Posted</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="table-wrap">
+            <table class="content-table">
+              <thead>
+                <tr>
+                  <th>Judul Konten</th>
+                  <th>Jenis</th>
+                  <th>Platform</th>
+                  <th>Plan Posting</th>
+                  <th>Pilar</th>
+                  <th>Status</th>
+                  <th>PIC</th>
+                  <th>Aksi</th>
+                </tr>
+              </thead>
+
+              <tbody id="contentTableBody"></tbody>
+            </table>
+
+            <div class="mobile-content-list" id="mobileContentList"></div>
+
+            <div class="empty-state" id="emptyState">
+              <h4>Belum ada konten</h4>
+              <p>Klik tombol “+ Tambah Konten” untuk mulai membuat database content calendar.</p>
+            </div>
+          </div>
+        </section>
+      </section>
+
+      <!-- CALENDAR -->
+      <section class="page" id="page-calendar">
+        <section class="card calendar-card">
+          <div class="calendar-head">
+            <div>
+              <h3 id="calendarTitle">Calendar</h3>
+              <p>Konten muncul otomatis berdasarkan tanggal plan posting.</p>
+            </div>
+
+            <div class="calendar-actions">
+              <button class="btn btn-outline" id="prevMonthBtn">← Bulan Sebelumnya</button>
+              <button class="btn btn-primary" id="todayBtn">Bulan Ini</button>
+              <button class="btn btn-outline" id="nextMonthBtn">Bulan Berikutnya →</button>
+            </div>
+          </div>
+
+          <div class="calendar-grid" id="calendarGrid"></div>
+        </section>
+      </section>
+
+      <!-- KANBAN -->
+      <section class="page" id="page-kanban">
+        <section class="card kanban">
+          <div class="section-header">
+            <div>
+              <h3>Kanban Workflow</h3>
+              <p>Pantau proses produksi konten berdasarkan status.</p>
+            </div>
+          </div>
+
+          <div class="kanban-board" id="kanbanBoard"></div>
+        </section>
+      </section>
+
+      <!-- ANALYTICS -->
+      <section class="page" id="page-analytics">
+        <section class="card analytics-card">
+          <div class="section-header">
+            <div>
+              <h3>Analytics Ringkas</h3>
+              <p>Ringkasan distribusi konten berdasarkan platform, jenis konten, dan pilar.</p>
+            </div>
+          </div>
+
+          <div class="analytics-grid">
+            <div class="analytics-box">
+              <h4>Platform</h4>
+              <div id="platformAnalytics"></div>
+            </div>
+
+            <div class="analytics-box">
+              <h4>Jenis Konten</h4>
+              <div id="typeAnalytics"></div>
+            </div>
+
+            <div class="analytics-box">
+              <h4>Pilar Konten</h4>
+              <div id="pillarAnalytics"></div>
+            </div>
+          </div>
+        </section>
+      </section>
+
+      <!-- SETTINGS -->
+      <section class="page" id="page-settings">
+        <section class="card settings-card">
+          <div class="section-header">
+            <div>
+              <h3>Settings</h3>
+              <p>Kelola export, backup, import, dan reset data content calendar.</p>
+            </div>
+          </div>
+
+          <div class="settings-grid">
+            <div class="setting-item">
+              <div class="setting-info">
+                <h4>Export CSV</h4>
+                <p>Export seluruh data konten ke format CSV agar bisa dibuka di Excel atau Google Sheets.</p>
+              </div>
+
+              <button class="btn btn-outline" id="exportCsvBtn">Export CSV</button>
+            </div>
+
+            <div class="setting-item">
+              <div class="setting-info">
+                <h4>Backup JSON</h4>
+                <p>Simpan seluruh database konten ke file JSON sebagai cadangan data.</p>
+              </div>
+
+              <button class="btn btn-outline" id="backupJsonBtn">Backup JSON</button>
+            </div>
+
+            <div class="setting-item">
+              <div class="setting-info">
+                <h4>Import JSON</h4>
+                <p>Import kembali data dari file JSON backup untuk mengembalikan database konten.</p>
+              </div>
+
+              <label class="btn btn-outline import-btn" for="importJsonInput">
+                Import JSON
+              </label>
+
+              <input
+                type="file"
+                id="importJsonInput"
+                accept="application/json"
+                hidden
+              />
+            </div>
+
+            <div class="setting-item danger-setting">
+              <div class="setting-info">
+                <h4>Reset Data</h4>
+                <p>Hapus seluruh data konten yang tersimpan di browser. Gunakan fitur ini dengan hati-hati.</p>
+              </div>
+
+              <button class="btn btn-outline danger-btn" id="clearDataBtn">Reset Data</button>
+            </div>
+          </div>
+        </section>
+      </section>
+
+      <p class="footer-note">© 2026 Medio Football Development. Content Calendar UI Prototype.</p>
+    </main>
+  </div>
+
+  <!-- DETAIL MODAL -->
+  <div class="modal-overlay" id="detailModal">
+    <div class="modal-card detail-modal-card">
+      <div class="modal-header">
+        <div>
+          <span class="modal-eyebrow">Content Detail</span>
+          <h3 id="detailTitle">Detail Konten</h3>
+          <p id="detailMeta">Informasi lengkap konten.</p>
+        </div>
+
+        <button class="modal-close" id="closeDetailModalBtn" type="button">×</button>
+      </div>
+
+      <div class="detail-content">
+        <div class="detail-row">
+          <span>Jenis Konten</span>
+          <strong id="detailType">-</strong>
+        </div>
+
+        <div class="detail-row">
+          <span>Platform</span>
+          <strong id="detailPlatform">-</strong>
+        </div>
+
+        <div class="detail-row">
+          <span>Plan Posting</span>
+          <strong id="detailDate">-</strong>
+        </div>
+
+        <div class="detail-row">
+          <span>Pilar Konten</span>
+          <strong id="detailPillar">-</strong>
+        </div>
+
+        <div class="detail-row">
+          <span>Status</span>
+          <strong id="detailStatus">-</strong>
+        </div>
+
+        <div class="detail-row">
+          <span>PIC</span>
+          <strong id="detailPic">-</strong>
+        </div>
+
+        <div class="detail-caption">
+          <span>Isi Konten / Caption</span>
+          <p id="detailCaption">-</p>
+        </div>
+      </div>
+
+      <div class="form-actions detail-actions">
+        <button class="btn btn-primary" type="button" id="editFromDetailBtn">
+          Edit Konten
+        </button>
+        <button class="btn btn-outline" type="button" id="closeDetailBtn">
+          Tutup
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- CONTENT FORM MODAL -->
+  <div class="modal-overlay" id="contentModal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div>
+          <span class="modal-eyebrow">Medio Football Development</span>
+          <h3 id="modalTitle">Tambah Konten</h3>
+          <p>Lengkapi detail konten untuk masuk ke database dan calendar.</p>
+        </div>
+
+        <button class="modal-close" id="closeModalBtn" type="button">×</button>
+      </div>
+
+      <form class="form-grid" id="contentForm">
+        <input type="hidden" id="contentId" />
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="title">Judul Konten</label>
+            <input
+              id="title"
+              type="text"
+              placeholder="Contoh: Drill Finishing untuk Striker Muda"
+            />
+          </div>
+
+          <div class="form-group">
+            <label for="pillar">Pilar Konten</label>
+            <select id="pillar">
+              <option value="Education">Education</option>
+              <option value="Training Drill">Training Drill</option>
+              <option value="Matchday">Matchday</option>
+              <option value="Player Development">Player Development</option>
+              <option value="Behind The Scene">Behind The Scene</option>
+              <option value="Promotion">Promotion</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="type">Jenis Konten</label>
+            <select id="type">
+              <option value="Feeds">Feeds</option>
+              <option value="Reels">Reels</option>
+              <option value="Story">Story</option>
+              <option value="TikTok Video">TikTok Video</option>
+              <option value="YouTube Shorts">YouTube Shorts</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="platform">Posting Dimana</label>
+            <select id="platform">
+              <option value="Instagram">Instagram</option>
+              <option value="TikTok">TikTok</option>
+              <option value="Instagram & TikTok">Instagram & TikTok</option>
+              <option value="IG Story">IG Story</option>
+              <option value="YouTube Shorts">YouTube Shorts</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="date">Plan Posting</label>
+            <input id="date" type="datetime-local" />
+          </div>
+
+          <div class="form-group">
+            <label for="status">Status Konten</label>
+            <select id="status">
+              <option value="Draft">Draft</option>
+              <option value="Review">Review</option>
+              <option value="Scheduled">Scheduled</option>
+              <option value="Posted">Posted</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="pic">PIC</label>
+          <input id="pic" type="text" placeholder="Contoh: Admin MFD" />
+        </div>
+
+        <div class="form-group">
+          <label for="caption">Isi Konten / Caption</label>
+          <textarea
+            id="caption"
+            placeholder="Tulis hook, isi konten, CTA, dan hashtag..."
+          ></textarea>
+        </div>
+
+        <div class="form-actions">
+          <button class="btn btn-primary" type="submit" id="saveContentBtn">
+            Simpan Konten
+          </button>
+          <button class="btn btn-outline" type="button" id="cancelEditBtn">
+            Batal
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
