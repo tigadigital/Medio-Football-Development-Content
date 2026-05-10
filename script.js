@@ -1,12 +1,25 @@
-const FIREBASE_DATABASE_URL =
-  "https://medio-football-development-default-rtdb.asia-southeast1.firebasedatabase.app";
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
+import {
+  getDatabase,
+  ref,
+  onValue,
+  set,
+  remove
+} from "https://www.gstatic.com/firebasejs/10.12.5/firebase-database.js";
+
+const firebaseConfig = {
+  databaseURL:
+    "https://medio-football-development-default-rtdb.asia-southeast1.firebasedatabase.app"
+};
+
+const firebaseApp = initializeApp(firebaseConfig);
+const database = getDatabase(firebaseApp);
 
 const FIREBASE_CONTENT_PATH = "contentCalendar/contents";
 const LOCAL_BACKUP_KEY = "medioFootballContentCalendarBackup";
 
 const pages = document.querySelectorAll(".page");
 const appLayout = document.getElementById("appLayout");
-const sidebar = document.getElementById("sidebar");
 const sidebarToggleBtn = document.getElementById("sidebarToggleBtn");
 const sidebarCloseBtn = document.getElementById("sidebarCloseBtn");
 const sidebarBackdrop = document.getElementById("sidebarBackdrop");
@@ -91,7 +104,8 @@ const dominantTypeText = document.getElementById("dominantTypeText");
 const pageMeta = {
   dashboard: {
     title: "Dashboard",
-    description: "Pantau ringkasan aktivitas content calendar Medio Football Development."
+    description:
+      "Pantau ringkasan aktivitas content calendar Medio Football Development."
   },
   database: {
     title: "Database Konten",
@@ -107,7 +121,8 @@ const pageMeta = {
   },
   analytics: {
     title: "Analytics",
-    description: "Analisis distribusi konten berdasarkan platform, jenis, dan pilar."
+    description:
+      "Analisis distribusi konten berdasarkan platform, jenis, dan pilar."
   },
   settings: {
     title: "Settings",
@@ -135,14 +150,8 @@ const dayNames = ["Sen", "Sel", "Rab", "Kam", "Jum", "Sab", "Min"];
 let contentData = [];
 let currentCalendarDate = new Date();
 
-function getFirebaseUrl(id = "") {
-  const cleanBaseUrl = FIREBASE_DATABASE_URL.replace(/\/$/, "");
-  const path = id
-    ? `${FIREBASE_CONTENT_PATH}/${encodeURIComponent(id)}`
-    : FIREBASE_CONTENT_PATH;
-
-  return `${cleanBaseUrl}/${path}.json`;
-}
+const contentsRef = ref(database, FIREBASE_CONTENT_PATH);
+const connectionRef = ref(database, ".info/connected");
 
 function setFirebaseStatus(type, text) {
   if (!firebaseStatus) return;
@@ -150,6 +159,23 @@ function setFirebaseStatus(type, text) {
   firebaseStatus.classList.remove("online", "loading", "offline");
   firebaseStatus.classList.add(type);
   firebaseStatus.textContent = text;
+}
+
+function generateId() {
+  if (window.crypto && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+
+  return `content-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
+function makeFirebaseSafeKey(value) {
+  return String(value || generateId()).replace(/[.#$/[\]]/g, "-");
+}
+
+function getContentRef(id) {
+  const safeId = makeFirebaseSafeKey(id);
+  return ref(database, `${FIREBASE_CONTENT_PATH}/${safeId}`);
 }
 
 function saveLocalBackup() {
@@ -180,118 +206,84 @@ function parseFirebaseData(data) {
     });
 }
 
-async function loadDataFromFirebase() {
+function startConnectionListener() {
+  onValue(connectionRef, (snapshot) => {
+    const isConnected = snapshot.val() === true;
+
+    if (isConnected) {
+      setFirebaseStatus("online", "Firebase: realtime aktif");
+    } else {
+      setFirebaseStatus("offline", "Firebase: offline");
+    }
+  });
+}
+
+function startRealtimeContentListener() {
   setFirebaseStatus("loading", "Firebase: memuat...");
 
-  try {
-    const response = await fetch(getFirebaseUrl(), {
-      method: "GET"
-    });
+  onValue(
+    contentsRef,
+    (snapshot) => {
+      const firebaseData = snapshot.val();
 
-    if (!response.ok) {
-      throw new Error("Gagal mengambil data dari Firebase.");
+      contentData = parseFirebaseData(firebaseData);
+      saveLocalBackup();
+      renderAll();
+
+      if (firebaseStatus && !firebaseStatus.classList.contains("offline")) {
+        setFirebaseStatus("online", "Firebase: realtime aktif");
+      }
+    },
+    (error) => {
+      console.error(error);
+
+      contentData = loadLocalBackup();
+      renderAll();
+
+      setFirebaseStatus("offline", "Firebase: akses ditolak/gagal");
+      alert(
+        "Gagal membaca data realtime dari Firebase. Cek Rules Realtime Database."
+      );
     }
-
-    const data = await response.json();
-
-    contentData = parseFirebaseData(data);
-    saveLocalBackup();
-    renderAll();
-
-    setFirebaseStatus("online", "Firebase: tersambung");
-  } catch (error) {
-    console.error(error);
-
-    contentData = loadLocalBackup();
-    renderAll();
-
-    setFirebaseStatus("offline", "Firebase: gagal terhubung");
-    alert(
-      "Gagal terhubung ke Firebase. Cek koneksi internet atau Rules Realtime Database."
-    );
-  }
+  );
 }
 
 async function saveContentToFirebase(content) {
-  const response = await fetch(getFirebaseUrl(content.id), {
-    method: "PUT",
-    headers: {
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify(content)
-  });
+  const safeId = makeFirebaseSafeKey(content.id);
 
-  if (!response.ok) {
-    throw new Error("Gagal menyimpan konten ke Firebase.");
-  }
+  const normalizedContent = {
+    ...content,
+    id: safeId
+  };
 
-  return response.json();
+  await set(getContentRef(safeId), normalizedContent);
 }
 
 async function deleteContentFromFirebase(id) {
-  const response = await fetch(getFirebaseUrl(id), {
-    method: "DELETE"
-  });
-
-  if (!response.ok) {
-    throw new Error("Gagal menghapus konten dari Firebase.");
-  }
-
-  return response.json();
+  await remove(getContentRef(id));
 }
 
 async function replaceAllFirebaseData(dataArray) {
   const dataObject = dataArray.reduce((result, item) => {
-    result[item.id] = item;
+    const safeId = makeFirebaseSafeKey(item.id);
+
+    result[safeId] = {
+      ...item,
+      id: safeId
+    };
+
     return result;
   }, {});
 
-  const response = await fetch(getFirebaseUrl(), {
-    method: "PUT",
-    headers: {
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify(dataObject)
-  });
-
-  if (!response.ok) {
-    throw new Error("Gagal mengganti data Firebase.");
-  }
-
-  return response.json();
+  await set(contentsRef, dataObject);
 }
 
 async function clearFirebaseData() {
-  const response = await fetch(getFirebaseUrl(), {
-    method: "DELETE"
-  });
-
-  if (!response.ok) {
-    throw new Error("Gagal mereset data Firebase.");
-  }
-
-  return response.json();
-}
-
-function generateId() {
-  if (window.crypto && crypto.randomUUID) {
-    return crypto.randomUUID();
-  }
-
-  return `content-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  await remove(contentsRef);
 }
 
 function isMobileView() {
   return window.matchMedia("(max-width: 900px)").matches;
-}
-
-function openSidebar() {
-  if (isMobileView()) {
-    document.body.classList.add("sidebar-open");
-    return;
-  }
-
-  appLayout.classList.remove("sidebar-collapsed");
 }
 
 function closeSidebar() {
@@ -446,7 +438,7 @@ function formatDateTime(dateValue) {
 }
 
 function getTypeBadgeClass(type) {
-  const lowerType = type.toLowerCase();
+  const lowerType = String(type || "").toLowerCase();
 
   if (lowerType.includes("reels")) return "gold";
   if (lowerType.includes("feeds")) return "white";
@@ -467,7 +459,7 @@ function getStatusBadgeClass(status) {
 }
 
 function getEventClass(type) {
-  const lowerType = type.toLowerCase();
+  const lowerType = String(type || "").toLowerCase();
 
   if (lowerType.includes("reels")) return "reels";
   if (lowerType.includes("feeds")) return "feeds";
@@ -933,8 +925,7 @@ function renderAttentionList() {
   if (reviewContents.length > 0) {
     attentionItems.push({
       title: `${reviewContents.length} konten menunggu Review`,
-      description:
-        "Konten perlu dicek agar tidak menghambat jadwal produksi.",
+      description: "Konten perlu dicek agar tidak menghambat jadwal produksi.",
       badge: "Review",
       type: "warning"
     });
@@ -1080,7 +1071,7 @@ async function handleSubmit(event) {
   const contentId = contentIdInput.value;
 
   const payload = {
-    id: contentId || generateId(),
+    id: makeFirebaseSafeKey(contentId || generateId()),
     title: titleInput.value.trim(),
     pillar: pillarInput.value,
     type: typeInput.value,
@@ -1098,25 +1089,13 @@ async function handleSubmit(event) {
   try {
     await saveContentToFirebase(payload);
 
+    closeModal();
+
     if (contentId) {
-      contentData = contentData.map((content) => {
-        if (content.id === contentId) {
-          return payload;
-        }
-
-        return content;
-      });
-
       alert("Konten berhasil diperbarui.");
     } else {
-      contentData.push(payload);
       alert("Konten berhasil ditambahkan.");
     }
-
-    saveLocalBackup();
-    closeModal();
-    renderAll();
-    setFirebaseStatus("online", "Firebase: tersambung");
   } catch (error) {
     console.error(error);
     alert("Gagal menyimpan konten ke Firebase. Cek Rules atau koneksi internet.");
@@ -1155,13 +1134,7 @@ async function deleteContent(id) {
 
   try {
     await deleteContentFromFirebase(id);
-
-    contentData = contentData.filter((content) => content.id !== id);
-    saveLocalBackup();
-    renderAll();
-
     alert("Konten berhasil dihapus.");
-    setFirebaseStatus("online", "Firebase: tersambung");
   } catch (error) {
     console.error(error);
     alert("Gagal menghapus konten dari Firebase.");
@@ -1177,13 +1150,10 @@ async function resetAllData() {
   try {
     await clearFirebaseData();
 
-    contentData = [];
     localStorage.removeItem(LOCAL_BACKUP_KEY);
     resetForm();
-    renderAll();
 
     alert("Semua data berhasil direset.");
-    setFirebaseStatus("online", "Firebase: tersambung");
   } catch (error) {
     console.error(error);
     alert("Gagal reset data Firebase.");
@@ -1283,7 +1253,7 @@ function backupJson() {
 
   const backupData = {
     app: "Medio Football Development Content Calendar",
-    version: "1.0",
+    version: "2.0-realtime",
     exportedAt: new Date().toISOString(),
     totalData: contentData.length,
     data: contentData
@@ -1320,7 +1290,7 @@ function importJson(event) {
 
       const normalizedData = importedData.map((item) => {
         return {
-          id: item.id || generateId(),
+          id: makeFirebaseSafeKey(item.id || generateId()),
           title: item.title,
           pillar: item.pillar,
           type: item.type,
@@ -1360,12 +1330,7 @@ function importJson(event) {
 
       await replaceAllFirebaseData(normalizedData);
 
-      contentData = normalizedData;
-      saveLocalBackup();
-      renderAll();
-
       alert("Data berhasil diimport ke Firebase.");
-      setFirebaseStatus("online", "Firebase: tersambung");
     } catch (error) {
       console.error(error);
       alert("Gagal membaca atau mengimport file JSON.");
@@ -1459,4 +1424,5 @@ window.openDetailModal = openDetailModal;
 
 renderAll();
 updateTopbarByPage("dashboard");
-loadDataFromFirebase();
+startConnectionListener();
+startRealtimeContentListener();
