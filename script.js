@@ -1,4 +1,8 @@
-const STORAGE_KEY = "medioFootballContentCalendar";
+const FIREBASE_DATABASE_URL =
+  "https://medio-football-development-default-rtdb.asia-southeast1.firebasedatabase.app";
+
+const FIREBASE_CONTENT_PATH = "contentCalendar/contents";
+const LOCAL_BACKUP_KEY = "medioFootballContentCalendarBackup";
 
 const pages = document.querySelectorAll(".page");
 const appLayout = document.getElementById("appLayout");
@@ -34,6 +38,8 @@ const detailPillar = document.getElementById("detailPillar");
 const detailStatus = document.getElementById("detailStatus");
 const detailPic = document.getElementById("detailPic");
 const detailCaption = document.getElementById("detailCaption");
+
+const firebaseStatus = document.getElementById("firebaseStatus");
 
 let selectedDetailId = null;
 
@@ -126,51 +132,153 @@ const monthNames = [
 
 const dayNames = ["Sen", "Sel", "Rab", "Kam", "Jum", "Sab", "Min"];
 
-let contentData = getInitialData();
+let contentData = [];
 let currentCalendarDate = new Date();
 
-function getInitialData() {
-  const savedData = localStorage.getItem(STORAGE_KEY);
+function getFirebaseUrl(id = "") {
+  const cleanBaseUrl = FIREBASE_DATABASE_URL.replace(/\/$/, "");
+  const path = id
+    ? `${FIREBASE_CONTENT_PATH}/${encodeURIComponent(id)}`
+    : FIREBASE_CONTENT_PATH;
 
-  if (savedData) {
-    return JSON.parse(savedData);
+  return `${cleanBaseUrl}/${path}.json`;
+}
+
+function setFirebaseStatus(type, text) {
+  if (!firebaseStatus) return;
+
+  firebaseStatus.classList.remove("online", "loading", "offline");
+  firebaseStatus.classList.add(type);
+  firebaseStatus.textContent = text;
+}
+
+function saveLocalBackup() {
+  localStorage.setItem(LOCAL_BACKUP_KEY, JSON.stringify(contentData));
+}
+
+function loadLocalBackup() {
+  const backup = localStorage.getItem(LOCAL_BACKUP_KEY);
+
+  if (!backup) return [];
+
+  try {
+    return JSON.parse(backup);
+  } catch (error) {
+    return [];
+  }
+}
+
+function parseFirebaseData(data) {
+  if (!data) return [];
+
+  return Object.values(data)
+    .filter(Boolean)
+    .sort((a, b) => {
+      const dateA = new Date(a.date || 0);
+      const dateB = new Date(b.date || 0);
+      return dateA - dateB;
+    });
+}
+
+async function loadDataFromFirebase() {
+  setFirebaseStatus("loading", "Firebase: memuat...");
+
+  try {
+    const response = await fetch(getFirebaseUrl(), {
+      method: "GET"
+    });
+
+    if (!response.ok) {
+      throw new Error("Gagal mengambil data dari Firebase.");
+    }
+
+    const data = await response.json();
+
+    contentData = parseFirebaseData(data);
+    saveLocalBackup();
+    renderAll();
+
+    setFirebaseStatus("online", "Firebase: tersambung");
+  } catch (error) {
+    console.error(error);
+
+    contentData = loadLocalBackup();
+    renderAll();
+
+    setFirebaseStatus("offline", "Firebase: gagal terhubung");
+    alert(
+      "Gagal terhubung ke Firebase. Cek koneksi internet atau Rules Realtime Database."
+    );
+  }
+}
+
+async function saveContentToFirebase(content) {
+  const response = await fetch(getFirebaseUrl(content.id), {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(content)
+  });
+
+  if (!response.ok) {
+    throw new Error("Gagal menyimpan konten ke Firebase.");
   }
 
-  return [
-    {
-      id: crypto.randomUUID(),
-      title: "3 Kesalahan Pemain Muda Saat First Touch",
-      pillar: "Education",
-      type: "Reels",
-      platform: "Instagram & TikTok",
-      date: "2026-05-12T19:00",
-      status: "Scheduled",
-      pic: "Coach Media",
-      caption: "Konten edukasi teknik dasar untuk akademi sepakbola."
+  return response.json();
+}
+
+async function deleteContentFromFirebase(id) {
+  const response = await fetch(getFirebaseUrl(id), {
+    method: "DELETE"
+  });
+
+  if (!response.ok) {
+    throw new Error("Gagal menghapus konten dari Firebase.");
+  }
+
+  return response.json();
+}
+
+async function replaceAllFirebaseData(dataArray) {
+  const dataObject = dataArray.reduce((result, item) => {
+    result[item.id] = item;
+    return result;
+  }, {});
+
+  const response = await fetch(getFirebaseUrl(), {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json"
     },
-    {
-      id: crypto.randomUUID(),
-      title: "Latihan Passing Triangle untuk U-15",
-      pillar: "Training Drill",
-      type: "Feeds",
-      platform: "Instagram",
-      date: "2026-05-14T12:00",
-      status: "Review",
-      pic: "Admin MFD",
-      caption: "Drill sederhana untuk meningkatkan decision making."
-    },
-    {
-      id: crypto.randomUUID(),
-      title: "Matchday Recap: MFD U-17 Friendly Game",
-      pillar: "Matchday",
-      type: "Story",
-      platform: "IG Story",
-      date: "2026-05-15T20:30",
-      status: "Draft",
-      pic: "Social Media",
-      caption: "Highlight pertandingan, scoreline, dan pemain terbaik."
-    }
-  ];
+    body: JSON.stringify(dataObject)
+  });
+
+  if (!response.ok) {
+    throw new Error("Gagal mengganti data Firebase.");
+  }
+
+  return response.json();
+}
+
+async function clearFirebaseData() {
+  const response = await fetch(getFirebaseUrl(), {
+    method: "DELETE"
+  });
+
+  if (!response.ok) {
+    throw new Error("Gagal mereset data Firebase.");
+  }
+
+  return response.json();
+}
+
+function generateId() {
+  if (window.crypto && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+
+  return `content-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
 function isMobileView() {
@@ -243,10 +351,6 @@ function updateTopbarByPage(pageName) {
   }
 }
 
-function saveToLocalStorage() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(contentData));
-}
-
 function escapeHTML(value) {
   return String(value || "")
     .replaceAll("&", "&amp;")
@@ -292,7 +396,8 @@ function openDetailModal(id) {
   detailPillar.textContent = selectedContent.pillar;
   detailStatus.textContent = selectedContent.status;
   detailPic.textContent = selectedContent.pic || "Admin MFD";
-  detailCaption.textContent = selectedContent.caption || "Belum ada isi konten atau caption.";
+  detailCaption.textContent =
+    selectedContent.caption || "Belum ada isi konten atau caption.";
 
   detailModal.classList.add("show");
   document.body.classList.add("modal-open");
@@ -389,7 +494,8 @@ function getFilteredData() {
     `.toLowerCase();
 
     const matchKeyword = searchableText.includes(keyword);
-    const matchStatus = selectedStatus === "all" || content.status === selectedStatus;
+    const matchStatus =
+      selectedStatus === "all" || content.status === selectedStatus;
 
     return matchKeyword && matchStatus;
   });
@@ -774,8 +880,13 @@ function renderAttentionList() {
     return isSameDate(contentDate, today);
   });
 
-  const draftContents = contentData.filter((content) => content.status === "Draft");
-  const reviewContents = contentData.filter((content) => content.status === "Review");
+  const draftContents = contentData.filter(
+    (content) => content.status === "Draft"
+  );
+
+  const reviewContents = contentData.filter(
+    (content) => content.status === "Review"
+  );
 
   const noCaptionContents = contentData.filter((content) => {
     return !content.caption || content.caption.trim().length === 0;
@@ -802,7 +913,8 @@ function renderAttentionList() {
   if (overdueContents.length > 0) {
     attentionItems.push({
       title: `${overdueContents.length} konten melewati jadwal`,
-      description: "Ada konten yang tanggal postingnya sudah lewat tetapi belum berstatus Posted.",
+      description:
+        "Ada konten yang tanggal postingnya sudah lewat tetapi belum berstatus Posted.",
       badge: "Overdue",
       type: "danger"
     });
@@ -811,7 +923,8 @@ function renderAttentionList() {
   if (draftContents.length > 0) {
     attentionItems.push({
       title: `${draftContents.length} konten masih Draft`,
-      description: "Konten masih perlu dilengkapi sebelum masuk tahap review atau scheduled.",
+      description:
+        "Konten masih perlu dilengkapi sebelum masuk tahap review atau scheduled.",
       badge: "Draft",
       type: "warning"
     });
@@ -820,7 +933,8 @@ function renderAttentionList() {
   if (reviewContents.length > 0) {
     attentionItems.push({
       title: `${reviewContents.length} konten menunggu Review`,
-      description: "Konten perlu dicek agar tidak menghambat jadwal produksi.",
+      description:
+        "Konten perlu dicek agar tidak menghambat jadwal produksi.",
       badge: "Review",
       type: "warning"
     });
@@ -829,7 +943,8 @@ function renderAttentionList() {
   if (noCaptionContents.length > 0) {
     attentionItems.push({
       title: `${noCaptionContents.length} konten belum punya caption`,
-      description: "Lengkapi caption agar konten siap diproduksi dan diposting.",
+      description:
+        "Lengkapi caption agar konten siap diproduksi dan diposting.",
       badge: "Caption",
       type: "warning"
     });
@@ -954,9 +1069,10 @@ function resetForm() {
 
   modalTitle.textContent = "Tambah Konten";
   saveContentBtn.textContent = "Simpan Konten";
+  saveContentBtn.disabled = false;
 }
 
-function handleSubmit(event) {
+async function handleSubmit(event) {
   event.preventDefault();
 
   if (!validateForm()) return;
@@ -964,7 +1080,7 @@ function handleSubmit(event) {
   const contentId = contentIdInput.value;
 
   const payload = {
-    id: contentId || crypto.randomUUID(),
+    id: contentId || generateId(),
     title: titleInput.value.trim(),
     pillar: pillarInput.value,
     type: typeInput.value,
@@ -975,24 +1091,40 @@ function handleSubmit(event) {
     caption: captionInput.value.trim()
   };
 
-  if (contentId) {
-    contentData = contentData.map((content) => {
-      if (content.id === contentId) {
-        return payload;
-      }
+  const previousButtonText = saveContentBtn.textContent;
+  saveContentBtn.disabled = true;
+  saveContentBtn.textContent = "Menyimpan...";
 
-      return content;
-    });
+  try {
+    await saveContentToFirebase(payload);
 
-    alert("Konten berhasil diperbarui.");
-  } else {
-    contentData.push(payload);
-    alert("Konten berhasil ditambahkan.");
+    if (contentId) {
+      contentData = contentData.map((content) => {
+        if (content.id === contentId) {
+          return payload;
+        }
+
+        return content;
+      });
+
+      alert("Konten berhasil diperbarui.");
+    } else {
+      contentData.push(payload);
+      alert("Konten berhasil ditambahkan.");
+    }
+
+    saveLocalBackup();
+    closeModal();
+    renderAll();
+    setFirebaseStatus("online", "Firebase: tersambung");
+  } catch (error) {
+    console.error(error);
+    alert("Gagal menyimpan konten ke Firebase. Cek Rules atau koneksi internet.");
+    setFirebaseStatus("offline", "Firebase: gagal menyimpan");
+  } finally {
+    saveContentBtn.disabled = false;
+    saveContentBtn.textContent = previousButtonText;
   }
-
-  saveToLocalStorage();
-  closeModal();
-  renderAll();
 }
 
 function editContent(id) {
@@ -1016,25 +1148,47 @@ function editContent(id) {
   openModal("edit");
 }
 
-function deleteContent(id) {
+async function deleteContent(id) {
   const isConfirmed = confirm("Yakin ingin menghapus konten ini?");
 
   if (!isConfirmed) return;
 
-  contentData = contentData.filter((content) => content.id !== id);
-  saveToLocalStorage();
-  renderAll();
+  try {
+    await deleteContentFromFirebase(id);
+
+    contentData = contentData.filter((content) => content.id !== id);
+    saveLocalBackup();
+    renderAll();
+
+    alert("Konten berhasil dihapus.");
+    setFirebaseStatus("online", "Firebase: tersambung");
+  } catch (error) {
+    console.error(error);
+    alert("Gagal menghapus konten dari Firebase.");
+    setFirebaseStatus("offline", "Firebase: gagal menghapus");
+  }
 }
 
-function resetAllData() {
+async function resetAllData() {
   const isConfirmed = confirm("Yakin ingin reset semua data konten?");
 
   if (!isConfirmed) return;
 
-  localStorage.removeItem(STORAGE_KEY);
-  contentData = [];
-  resetForm();
-  renderAll();
+  try {
+    await clearFirebaseData();
+
+    contentData = [];
+    localStorage.removeItem(LOCAL_BACKUP_KEY);
+    resetForm();
+    renderAll();
+
+    alert("Semua data berhasil direset.");
+    setFirebaseStatus("online", "Firebase: tersambung");
+  } catch (error) {
+    console.error(error);
+    alert("Gagal reset data Firebase.");
+    setFirebaseStatus("offline", "Firebase: gagal reset");
+  }
 }
 
 function goToPreviousMonth() {
@@ -1149,7 +1303,7 @@ function importJson(event) {
 
   const reader = new FileReader();
 
-  reader.onload = function (readerEvent) {
+  reader.onload = async function (readerEvent) {
     try {
       const importedFile = JSON.parse(readerEvent.target.result);
 
@@ -1164,7 +1318,21 @@ function importJson(event) {
         return;
       }
 
-      const isValidData = importedData.every((item) => {
+      const normalizedData = importedData.map((item) => {
+        return {
+          id: item.id || generateId(),
+          title: item.title,
+          pillar: item.pillar,
+          type: item.type,
+          platform: item.platform,
+          date: item.date,
+          status: item.status,
+          pic: item.pic,
+          caption: item.caption || ""
+        };
+      });
+
+      const isValidData = normalizedData.every((item) => {
         return (
           item.id &&
           item.title &&
@@ -1178,7 +1346,9 @@ function importJson(event) {
       });
 
       if (!isValidData) {
-        alert("Data JSON tidak valid. Pastikan file berasal dari backup aplikasi ini.");
+        alert(
+          "Data JSON tidak valid. Pastikan file berasal dari backup aplikasi ini."
+        );
         return;
       }
 
@@ -1188,13 +1358,18 @@ function importJson(event) {
 
       if (!isConfirmed) return;
 
-      contentData = importedData;
-      saveToLocalStorage();
+      await replaceAllFirebaseData(normalizedData);
+
+      contentData = normalizedData;
+      saveLocalBackup();
       renderAll();
 
-      alert("Data berhasil diimport.");
+      alert("Data berhasil diimport ke Firebase.");
+      setFirebaseStatus("online", "Firebase: tersambung");
     } catch (error) {
-      alert("Gagal membaca file JSON. Pastikan file tidak rusak.");
+      console.error(error);
+      alert("Gagal membaca atau mengimport file JSON.");
+      setFirebaseStatus("offline", "Firebase: gagal import");
     } finally {
       importJsonInput.value = "";
     }
@@ -1282,6 +1457,6 @@ window.editContent = editContent;
 window.deleteContent = deleteContent;
 window.openDetailModal = openDetailModal;
 
-saveToLocalStorage();
 renderAll();
 updateTopbarByPage("dashboard");
+loadDataFromFirebase();

@@ -70,6 +70,8 @@
             placeholder="Cari judul, platform, pilar, atau status..."
           />
 
+          <span class="firebase-status loading" id="firebaseStatus">Firebase: memuat...</span>
+
           <button class="btn btn-primary" id="openModalBtn">+ Tambah Konten</button>
         </div>
       </header>
@@ -314,7 +316,7 @@
             <div class="setting-item danger-setting">
               <div class="setting-info">
                 <h4>Reset Data</h4>
-                <p>Hapus seluruh data konten yang tersimpan di browser. Gunakan fitur ini dengan hati-hati.</p>
+                <p>Hapus seluruh data konten yang tersimpan di Firebase. Gunakan fitur ini dengan hati-hati.</p>
               </div>
 
               <button class="btn btn-outline danger-btn" id="clearDataBtn">Reset Data</button>

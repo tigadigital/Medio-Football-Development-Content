@@ -252,7 +252,7 @@ body.modal-open {
   align-items: center;
   justify-content: flex-end;
   flex-wrap: wrap;
-  max-width: 520px;
+  max-width: 720px;
 }
 
 .is-hidden {
@@ -277,6 +277,41 @@ textarea:focus {
   box-shadow: 0 0 0 4px rgba(219, 182, 102, 0.16);
 }
 
+/* FIREBASE STATUS */
+
+.firebase-status {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 38px;
+  padding: 9px 13px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: #ffffff;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.firebase-status.online {
+  border-color: rgba(219, 182, 102, 0.5);
+  background: rgba(219, 182, 102, 0.14);
+  color: #6d5117;
+}
+
+.firebase-status.loading {
+  border-color: #d7d7d7;
+  background: #f7f7f7;
+  color: #555555;
+}
+
+.firebase-status.offline {
+  border-color: #111111;
+  background: #111111;
+  color: #DBB666;
+}
+
 /* BUTTON */
 
 .btn {
@@ -299,6 +334,12 @@ textarea:focus {
 .btn-primary:hover {
   background: #181818;
   transform: translateY(-1px);
+}
+
+.btn-primary:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+  transform: none;
 }
 
 .btn-outline {
@@ -1417,7 +1458,8 @@ textarea {
     width: 100%;
   }
 
-  .search-box {
+  .search-box,
+  .firebase-status {
     width: 100%;
   }
 
