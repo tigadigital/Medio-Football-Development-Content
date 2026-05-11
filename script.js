@@ -47,6 +47,10 @@ const detailMeta = document.getElementById("detailMeta");
 const detailType = document.getElementById("detailType");
 const detailPlatform = document.getElementById("detailPlatform");
 const detailDate = document.getElementById("detailDate");
+const detailShootingRow = document.getElementById("detailShootingRow");
+const detailShootingDate = document.getElementById("detailShootingDate");
+const detailShootingStatusRow = document.getElementById("detailShootingStatusRow");
+const detailShootingStatus = document.getElementById("detailShootingStatus");
 const detailPillar = document.getElementById("detailPillar");
 const detailStatus = document.getElementById("detailStatus");
 const detailPic = document.getElementById("detailPic");
@@ -89,6 +93,12 @@ const prevMonthBtn = document.getElementById("prevMonthBtn");
 const nextMonthBtn = document.getElementById("nextMonthBtn");
 const todayBtn = document.getElementById("todayBtn");
 
+const shootingCalendarTitle = document.getElementById("shootingCalendarTitle");
+const shootingCalendarGrid = document.getElementById("shootingCalendarGrid");
+const prevShootingMonthBtn = document.getElementById("prevShootingMonthBtn");
+const nextShootingMonthBtn = document.getElementById("nextShootingMonthBtn");
+const todayShootingBtn = document.getElementById("todayShootingBtn");
+
 const kanbanBoard = document.getElementById("kanbanBoard");
 
 const platformAnalytics = document.getElementById("platformAnalytics");
@@ -112,8 +122,13 @@ const pageMeta = {
     description: "Kelola seluruh data konten dari satu tempat."
   },
   calendar: {
-    title: "Calendar",
+    title: "Content Calendar",
     description: "Lihat jadwal posting konten dalam tampilan kalender."
+  },
+  shooting: {
+    title: "Shooting Calendar",
+    description:
+      "Lihat jadwal shooting otomatis H-4 dari plan posting untuk konten video."
   },
   kanban: {
     title: "Kanban Workflow",
@@ -147,8 +162,21 @@ const monthNames = [
 
 const dayNames = ["Sen", "Sel", "Rab", "Kam", "Jum", "Sab", "Min"];
 
+const SHOOTING_OFFSET_DAYS = 4;
+const DEFAULT_SHOOTING_HOUR = 9;
+const DEFAULT_SHOOTING_MINUTE = 0;
+const KANBAN_ITEMS_PER_PAGE = 3;
+
 let contentData = [];
 let currentCalendarDate = new Date();
+let currentShootingCalendarDate = new Date();
+
+const kanbanPageState = {
+  Draft: 1,
+  Review: 1,
+  Scheduled: 1,
+  Posted: 1
+};
 
 const contentsRef = ref(database, FIREBASE_CONTENT_PATH);
 const connectionRef = ref(database, ".info/connected");
@@ -170,12 +198,97 @@ function generateId() {
 }
 
 function makeFirebaseSafeKey(value) {
-  return String(value || generateId()).replace(/[.#$/[\]]/g, "-");
+  return String(value || generateId()).replace(/[.#$\/\[\]]/g, "-");
 }
 
 function getContentRef(id) {
   const safeId = makeFirebaseSafeKey(id);
   return ref(database, `${FIREBASE_CONTENT_PATH}/${safeId}`);
+}
+
+function isVideoContentType(type) {
+  const videoTypes = ["Reels", "TikTok Video", "YouTube Shorts"];
+  return videoTypes.includes(type);
+}
+
+function formatDateToInputValue(date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  const hours = String(date.getHours()).padStart(2, "0");
+  const minutes = String(date.getMinutes()).padStart(2, "0");
+
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
+}
+
+function getAutoShootingDate(postingDateValue, type) {
+  if (!postingDateValue || !isVideoContentType(type)) {
+    return "";
+  }
+
+  const shootingDate = new Date(postingDateValue);
+
+  if (Number.isNaN(shootingDate.getTime())) {
+    return "";
+  }
+
+  shootingDate.setDate(shootingDate.getDate() - SHOOTING_OFFSET_DAYS);
+  shootingDate.setHours(DEFAULT_SHOOTING_HOUR, DEFAULT_SHOOTING_MINUTE, 0, 0);
+
+  return formatDateToInputValue(shootingDate);
+}
+
+function buildShootingFields({ type, postingDate, existingContent = {} }) {
+  if (!isVideoContentType(type)) {
+    return {
+      shootingDate: "",
+      shootingStatus: "",
+      shootingLocation: "",
+      talent: "",
+      equipment: "",
+      shotList: "",
+      shootingNotes: ""
+    };
+  }
+
+  return {
+    shootingDate: getAutoShootingDate(postingDate, type),
+    shootingStatus: existingContent.shootingStatus || "Planned",
+    shootingLocation: existingContent.shootingLocation || "",
+    talent: existingContent.talent || "",
+    equipment: existingContent.equipment || "",
+    shotList: existingContent.shotList || "",
+    shootingNotes: existingContent.shootingNotes || ""
+  };
+}
+
+function normalizeContentForApp(item) {
+  const type = item.type || "";
+  const postingDate = item.date || "";
+
+  if (!isVideoContentType(type)) {
+    return {
+      ...item,
+      shootingDate: "",
+      shootingStatus: "",
+      shootingLocation: "",
+      talent: "",
+      equipment: "",
+      shotList: "",
+      shootingNotes: ""
+    };
+  }
+
+  return {
+    ...item,
+    shootingDate: item.shootingDate || getAutoShootingDate(postingDate, type),
+    shootingStatus: item.shootingStatus || "Planned",
+    shootingLocation: item.shootingLocation || "",
+    talent: item.talent || "",
+    equipment: item.equipment || "",
+    shotList: item.shotList || "",
+    shootingNotes: item.shootingNotes || ""
+  };
 }
 
 function saveLocalBackup() {
@@ -199,6 +312,7 @@ function parseFirebaseData(data) {
 
   return Object.values(data)
     .filter(Boolean)
+    .map(normalizeContentForApp)
     .sort((a, b) => {
       const dateA = new Date(a.date || 0);
       const dateB = new Date(b.date || 0);
@@ -329,7 +443,13 @@ function switchPage(pageName) {
 
 function updateTopbarByPage(pageName) {
   const searchVisiblePages = ["database"];
-  const addButtonVisiblePages = ["dashboard", "database", "calendar", "kanban"];
+  const addButtonVisiblePages = [
+    "dashboard",
+    "database",
+    "calendar",
+    "shooting",
+    "kanban"
+  ];
 
   const shouldShowSearch = searchVisiblePages.includes(pageName);
   const shouldShowAddButton = addButtonVisiblePages.includes(pageName);
@@ -385,6 +505,21 @@ function openDetailModal(id) {
   detailType.textContent = selectedContent.type;
   detailPlatform.textContent = selectedContent.platform;
   detailDate.textContent = `${formattedDate.dateText} - ${formattedDate.timeText} WIB`;
+
+  if (isVideoContentType(selectedContent.type) && selectedContent.shootingDate) {
+    const formattedShootingDate = formatDateTime(selectedContent.shootingDate);
+
+    detailShootingRow.style.display = "grid";
+    detailShootingStatusRow.style.display = "grid";
+    detailShootingDate.textContent = `${formattedShootingDate.dateText} - ${formattedShootingDate.timeText} WIB`;
+    detailShootingStatus.textContent = selectedContent.shootingStatus || "Planned";
+  } else {
+    detailShootingRow.style.display = "none";
+    detailShootingStatusRow.style.display = "none";
+    detailShootingDate.textContent = "-";
+    detailShootingStatus.textContent = "-";
+  }
+
   detailPillar.textContent = selectedContent.pillar;
   detailStatus.textContent = selectedContent.status;
   detailPic.textContent = selectedContent.pic || "Admin MFD";
@@ -420,6 +555,13 @@ function formatDateTime(dateValue) {
 
   const date = new Date(dateValue);
 
+  if (Number.isNaN(date.getTime())) {
+    return {
+      dateText: "-",
+      timeText: "-"
+    };
+  }
+
   const dateText = date.toLocaleDateString("id-ID", {
     day: "numeric",
     month: "long",
@@ -454,6 +596,9 @@ function getStatusBadgeClass(status) {
   if (status === "Review") return "gray";
   if (status === "Posted") return "gold";
   if (status === "Draft") return "soft";
+  if (status === "Planned") return "soft";
+  if (status === "Shooting") return "gray";
+  if (status === "Done") return "gold";
 
   return "soft";
 }
@@ -483,6 +628,8 @@ function getFilteredData() {
       ${content.status}
       ${content.pic}
       ${content.caption}
+      ${content.shootingDate}
+      ${content.shootingStatus}
     `.toLowerCase();
 
     const matchKeyword = searchableText.includes(keyword);
@@ -522,12 +669,24 @@ function renderTable() {
     const typeBadgeClass = getTypeBadgeClass(content.type);
     const statusBadgeClass = getStatusBadgeClass(content.status);
 
+    const shootingInfo =
+      isVideoContentType(content.type) && content.shootingDate
+        ? formatDateTime(content.shootingDate)
+        : null;
+
     const row = document.createElement("tr");
 
     row.innerHTML = `
-      <td>
-        <strong>${escapeHTML(content.title)}</strong>
-        <small>${escapeHTML(content.caption || "Belum ada detail isi konten.")}</small>
+      <td class="content-title-cell">
+        <strong class="content-row-title">${escapeHTML(content.title)}</strong>
+        <small class="content-row-caption">
+          ${escapeHTML(content.caption || "Belum ada detail isi konten.")}
+        </small>
+        ${
+          shootingInfo
+            ? `<small class="content-row-shooting">Shooting Plan: ${shootingInfo.dateText} - ${shootingInfo.timeText} WIB</small>`
+            : ""
+        }
       </td>
       <td>
         <span class="badge ${typeBadgeClass}">${escapeHTML(content.type)}</span>
@@ -544,6 +703,7 @@ function renderTable() {
       <td>${escapeHTML(content.pic || "Admin MFD")}</td>
       <td>
         <div class="table-action">
+          <button class="action-btn" onclick="openDetailModal('${content.id}')">Detail</button>
           <button class="action-btn" onclick="editContent('${content.id}')">✏ Edit</button>
           <button class="action-btn delete" onclick="deleteContent('${content.id}')">🗑 Hapus</button>
         </div>
@@ -570,6 +730,17 @@ function renderTable() {
           <span>Plan Posting</span>
           <strong>${formattedDate.dateText} - ${formattedDate.timeText} WIB</strong>
         </div>
+
+        ${
+          shootingInfo
+            ? `
+              <div>
+                <span>Shooting Plan</span>
+                <strong>${shootingInfo.dateText} - ${shootingInfo.timeText} WIB</strong>
+              </div>
+            `
+            : ""
+        }
 
         <div>
           <span>Pilar</span>
@@ -610,7 +781,49 @@ function renderCalendar() {
   const year = currentCalendarDate.getFullYear();
   const month = currentCalendarDate.getMonth();
 
-  calendarTitle.textContent = `Calendar - ${monthNames[month]} ${year}`;
+  calendarTitle.textContent = `Content Calendar - ${monthNames[month]} ${year}`;
+
+  renderCalendarCells({
+    targetGrid: calendarGrid,
+    calendarDate: currentCalendarDate,
+    dateKey: "date",
+    eventPrefix: "Posting"
+  });
+}
+
+function renderShootingCalendar() {
+  shootingCalendarGrid.innerHTML = "";
+
+  dayNames.forEach((day) => {
+    const dayElement = document.createElement("div");
+    dayElement.className = "day-name";
+    dayElement.textContent = day;
+    shootingCalendarGrid.appendChild(dayElement);
+  });
+
+  const year = currentShootingCalendarDate.getFullYear();
+  const month = currentShootingCalendarDate.getMonth();
+
+  shootingCalendarTitle.textContent = `Shooting Calendar - ${monthNames[month]} ${year}`;
+
+  renderCalendarCells({
+    targetGrid: shootingCalendarGrid,
+    calendarDate: currentShootingCalendarDate,
+    dateKey: "shootingDate",
+    onlyVideoContent: true,
+    eventPrefix: "Shooting"
+  });
+}
+
+function renderCalendarCells({
+  targetGrid,
+  calendarDate,
+  dateKey,
+  onlyVideoContent = false,
+  eventPrefix
+}) {
+  const year = calendarDate.getFullYear();
+  const month = calendarDate.getMonth();
 
   const firstDayOfMonth = new Date(year, month, 1);
   const lastDayOfMonth = new Date(year, month + 1, 0);
@@ -669,9 +882,10 @@ function renderCalendar() {
     cell.appendChild(dateNumber);
 
     const events = contentData.filter((content) => {
-      if (!content.date) return false;
+      if (onlyVideoContent && !isVideoContentType(content.type)) return false;
+      if (!content[dateKey]) return false;
 
-      const contentDate = new Date(content.date);
+      const contentDate = new Date(content[dateKey]);
 
       return (
         contentDate.getDate() === dayNumber &&
@@ -681,7 +895,7 @@ function renderCalendar() {
     });
 
     events.forEach((content) => {
-      const formattedDate = formatDateTime(content.date);
+      const formattedDate = formatDateTime(content[dateKey]);
       const event = document.createElement("div");
       event.className = `event ${getEventClass(content.type)}`;
 
@@ -690,7 +904,7 @@ function renderCalendar() {
       event.setAttribute("title", content.title);
 
       event.innerHTML = `
-        ${formattedDate.timeText} • ${escapeHTML(content.type)}
+        ${formattedDate.timeText} • ${escapeHTML(eventPrefix)}
         <span class="event-title">${escapeHTML(content.title)}</span>
       `;
 
@@ -708,7 +922,7 @@ function renderCalendar() {
       cell.appendChild(event);
     });
 
-    calendarGrid.appendChild(cell);
+    targetGrid.appendChild(cell);
   }
 }
 
@@ -719,6 +933,27 @@ function renderKanban() {
 
   statuses.forEach((status) => {
     const contents = contentData.filter((content) => content.status === status);
+    const totalPages = Math.max(
+      1,
+      Math.ceil(contents.length / KANBAN_ITEMS_PER_PAGE)
+    );
+
+    if (!kanbanPageState[status]) {
+      kanbanPageState[status] = 1;
+    }
+
+    if (kanbanPageState[status] > totalPages) {
+      kanbanPageState[status] = totalPages;
+    }
+
+    if (kanbanPageState[status] < 1) {
+      kanbanPageState[status] = 1;
+    }
+
+    const currentPage = kanbanPageState[status];
+    const startIndex = (currentPage - 1) * KANBAN_ITEMS_PER_PAGE;
+    const endIndex = startIndex + KANBAN_ITEMS_PER_PAGE;
+    const visibleContents = contents.slice(startIndex, endIndex);
 
     const column = document.createElement("div");
     column.className = "kanban-column";
@@ -726,6 +961,16 @@ function renderKanban() {
     column.innerHTML = `
       <h4>${status} <span>${contents.length}</span></h4>
     `;
+
+    if (contents.length > 0) {
+      const pageMeta = document.createElement("div");
+      pageMeta.className = "kanban-page-meta";
+      pageMeta.textContent = `${startIndex + 1}-${Math.min(
+        endIndex,
+        contents.length
+      )} dari ${contents.length} konten`;
+      column.appendChild(pageMeta);
+    }
 
     if (contents.length === 0) {
       const emptyTask = document.createElement("div");
@@ -737,9 +982,13 @@ function renderKanban() {
       column.appendChild(emptyTask);
     }
 
-    contents.forEach((content) => {
+    visibleContents.forEach((content) => {
       const formattedDate = formatDateTime(content.date);
       const typeBadgeClass = getTypeBadgeClass(content.type);
+      const shootingInfo =
+        isVideoContentType(content.type) && content.shootingDate
+          ? formatDateTime(content.shootingDate)
+          : null;
 
       const task = document.createElement("div");
       task.className = "task compact-task";
@@ -756,6 +1005,12 @@ function renderKanban() {
         <strong>${escapeHTML(content.title)}</strong>
 
         <p>${escapeHTML(content.caption || "Belum ada detail konten.")}</p>
+
+        ${
+          shootingInfo
+            ? `<p>Shooting: ${shootingInfo.dateText} - ${shootingInfo.timeText} WIB</p>`
+            : ""
+        }
 
         <div class="task-meta">
           <span>${escapeHTML(content.platform)}</span>
@@ -786,8 +1041,52 @@ function renderKanban() {
       column.appendChild(task);
     });
 
+    if (contents.length > KANBAN_ITEMS_PER_PAGE) {
+      const pagination = document.createElement("div");
+      pagination.className = "kanban-pagination";
+
+      pagination.innerHTML = `
+        <button
+          class="action-btn"
+          type="button"
+          ${currentPage === 1 ? "disabled" : ""}
+          onclick="event.stopPropagation(); changeKanbanPage('${status}', -1)"
+        >
+          ← Prev
+        </button>
+
+        <span>Page ${currentPage} / ${totalPages}</span>
+
+        <button
+          class="action-btn"
+          type="button"
+          ${currentPage === totalPages ? "disabled" : ""}
+          onclick="event.stopPropagation(); changeKanbanPage('${status}', 1)"
+        >
+          Next →
+        </button>
+      `;
+
+      column.appendChild(pagination);
+    }
+
     kanbanBoard.appendChild(column);
   });
+}
+
+function changeKanbanPage(status, direction) {
+  const contents = contentData.filter((content) => content.status === status);
+  const totalPages = Math.max(
+    1,
+    Math.ceil(contents.length / KANBAN_ITEMS_PER_PAGE)
+  );
+
+  const currentPage = kanbanPageState[status] || 1;
+  const nextPage = currentPage + direction;
+
+  kanbanPageState[status] = Math.min(Math.max(nextPage, 1), totalPages);
+
+  renderKanban();
 }
 
 function countByKey(data, key) {
@@ -872,6 +1171,13 @@ function renderAttentionList() {
     return isSameDate(contentDate, today);
   });
 
+  const todayShootingContents = contentData.filter((content) => {
+    if (!content.shootingDate || !isVideoContentType(content.type)) return false;
+
+    const shootingDate = new Date(content.shootingDate);
+    return isSameDate(shootingDate, today);
+  });
+
   const draftContents = contentData.filter(
     (content) => content.status === "Draft"
   );
@@ -895,9 +1201,18 @@ function renderAttentionList() {
 
   if (todayContents.length > 0) {
     attentionItems.push({
-      title: `${todayContents.length} konten dijadwalkan hari ini`,
+      title: `${todayContents.length} konten dijadwalkan posting hari ini`,
       description: "Pastikan konten sudah final, approved, dan siap diposting.",
-      badge: "Hari Ini",
+      badge: "Posting",
+      type: "warning"
+    });
+  }
+
+  if (todayShootingContents.length > 0) {
+    attentionItems.push({
+      title: `${todayShootingContents.length} konten masuk jadwal shooting hari ini`,
+      description: "Pastikan talent, lokasi, dan kebutuhan produksi sudah siap.",
+      badge: "Shooting",
       type: "warning"
     });
   }
@@ -971,8 +1286,19 @@ function renderAttentionList() {
 }
 
 function renderDashboard() {
+  const now = new Date();
+
   const upcomingData = [...contentData]
-    .filter((content) => content.date)
+    .filter((content) => {
+      if (!content.date) return false;
+      if (content.status === "Posted") return false;
+
+      const postingDate = new Date(content.date);
+
+      if (Number.isNaN(postingDate.getTime())) return false;
+
+      return postingDate >= now;
+    })
     .sort((a, b) => new Date(a.date) - new Date(b.date))
     .slice(0, 5);
 
@@ -982,8 +1308,8 @@ function renderDashboard() {
     upcomingContentList.innerHTML = `
       <div class="mini-item">
         <div>
-          <strong>Belum ada jadwal</strong>
-          <span>Tambahkan konten baru untuk melihat jadwal terdekat.</span>
+          <strong>Belum ada jadwal aktif</strong>
+          <span>Konten yang sudah Posted tidak ditampilkan di daftar ini.</span>
         </div>
       </div>
     `;
@@ -1020,6 +1346,7 @@ function renderAll() {
   renderStats();
   renderTable();
   renderCalendar();
+  renderShootingCalendar();
   renderKanban();
   renderAnalytics();
   renderDashboard();
@@ -1069,17 +1396,29 @@ async function handleSubmit(event) {
   if (!validateForm()) return;
 
   const contentId = contentIdInput.value;
+  const selectedType = typeInput.value;
+  const postingDate = dateInput.value;
+
+  const existingContent = contentId
+    ? contentData.find((content) => content.id === contentId) || {}
+    : {};
 
   const payload = {
     id: makeFirebaseSafeKey(contentId || generateId()),
     title: titleInput.value.trim(),
     pillar: pillarInput.value,
-    type: typeInput.value,
+    type: selectedType,
     platform: platformInput.value,
-    date: dateInput.value,
+    date: postingDate,
     status: statusInput.value,
     pic: picInput.value.trim(),
-    caption: captionInput.value.trim()
+    caption: captionInput.value.trim(),
+
+    ...buildShootingFields({
+      type: selectedType,
+      postingDate,
+      existingContent
+    })
   };
 
   const previousButtonText = saveContentBtn.textContent;
@@ -1176,6 +1515,25 @@ function goToCurrentMonth() {
   renderCalendar();
 }
 
+function goToPreviousShootingMonth() {
+  currentShootingCalendarDate.setMonth(
+    currentShootingCalendarDate.getMonth() - 1
+  );
+  renderShootingCalendar();
+}
+
+function goToNextShootingMonth() {
+  currentShootingCalendarDate.setMonth(
+    currentShootingCalendarDate.getMonth() + 1
+  );
+  renderShootingCalendar();
+}
+
+function goToCurrentShootingMonth() {
+  currentShootingCalendarDate = new Date();
+  renderShootingCalendar();
+}
+
 function convertToCsv(data) {
   const headers = [
     "Judul Konten",
@@ -1183,13 +1541,16 @@ function convertToCsv(data) {
     "Jenis Konten",
     "Platform",
     "Tanggal Posting",
-    "Status",
+    "Shooting Plan",
+    "Status Shooting",
+    "Status Konten",
     "PIC",
     "Caption"
   ];
 
   const rows = data.map((content) => {
     const formattedDate = formatDateTime(content.date);
+    const formattedShootingDate = formatDateTime(content.shootingDate);
 
     return [
       content.title,
@@ -1197,6 +1558,10 @@ function convertToCsv(data) {
       content.type,
       content.platform,
       `${formattedDate.dateText} ${formattedDate.timeText} WIB`,
+      content.shootingDate
+        ? `${formattedShootingDate.dateText} ${formattedShootingDate.timeText} WIB`
+        : "",
+      content.shootingStatus || "",
       content.status,
       content.pic,
       content.caption
@@ -1253,7 +1618,7 @@ function backupJson() {
 
   const backupData = {
     app: "Medio Football Development Content Calendar",
-    version: "2.0-realtime",
+    version: "2.2-realtime-shooting-kanban-pagination",
     exportedAt: new Date().toISOString(),
     totalData: contentData.length,
     data: contentData
@@ -1289,16 +1654,25 @@ function importJson(event) {
       }
 
       const normalizedData = importedData.map((item) => {
+        const selectedType = item.type;
+        const postingDate = item.date;
+
         return {
           id: makeFirebaseSafeKey(item.id || generateId()),
           title: item.title,
           pillar: item.pillar,
-          type: item.type,
+          type: selectedType,
           platform: item.platform,
-          date: item.date,
+          date: postingDate,
           status: item.status,
           pic: item.pic,
-          caption: item.caption || ""
+          caption: item.caption || "",
+
+          ...buildShootingFields({
+            type: selectedType,
+            postingDate,
+            existingContent: item
+          })
         };
       });
 
@@ -1418,9 +1792,14 @@ prevMonthBtn.addEventListener("click", goToPreviousMonth);
 nextMonthBtn.addEventListener("click", goToNextMonth);
 todayBtn.addEventListener("click", goToCurrentMonth);
 
+prevShootingMonthBtn.addEventListener("click", goToPreviousShootingMonth);
+nextShootingMonthBtn.addEventListener("click", goToNextShootingMonth);
+todayShootingBtn.addEventListener("click", goToCurrentShootingMonth);
+
 window.editContent = editContent;
 window.deleteContent = deleteContent;
 window.openDetailModal = openDetailModal;
+window.changeKanbanPage = changeKanbanPage;
 
 renderAll();
 updateTopbarByPage("dashboard");

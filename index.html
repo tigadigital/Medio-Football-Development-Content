@@ -4,33 +4,30 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-  <!-- Primary SEO -->
   <title>Medio Football Development - Content Calendar System</title>
   <meta
     name="description"
-    content="Content Calendar System Medio Football Development untuk mengelola jadwal, database konten, kalender posting, workflow, dan analytics konten secara realtime."
+    content="Content Calendar System Medio Football Development untuk mengelola jadwal, database konten, kalender posting, shooting calendar, workflow, dan analytics konten secara realtime."
   />
   <meta
     name="keywords"
-    content="Medio Football Development, content calendar, football development, kalender konten, manajemen konten, social media football, konten sepakbola, akademi sepakbola, football training, content workflow"
+    content="Medio Football Development, content calendar, shooting calendar, football development, kalender konten, manajemen konten, social media football, konten sepakbola, akademi sepakbola, football training, content workflow"
   />
   <meta name="author" content="Medio Football Development" />
   <meta name="robots" content="index, follow" />
   <meta name="theme-color" content="#000000" />
   <link rel="canonical" href="https://tigadigital.github.io/Medio-Football-Development-Content/" />
 
-  <!-- Favicon -->
   <link rel="icon" type="image/png" href="assets/fav-medio.png" />
   <link rel="shortcut icon" type="image/png" href="assets/fav-medio.png" />
   <link rel="apple-touch-icon" href="assets/fav-medio.png" />
 
-  <!-- Open Graph / Facebook / WhatsApp / LinkedIn -->
   <meta property="og:type" content="website" />
   <meta property="og:url" content="https://tigadigital.github.io/Medio-Football-Development-Content/" />
   <meta property="og:title" content="Medio Football Development - Content Calendar System" />
   <meta
     property="og:description"
-    content="Kelola jadwal, database konten, kalender posting, workflow, dan analytics konten Medio Football Development secara realtime."
+    content="Kelola jadwal posting, shooting plan, database konten, workflow, dan analytics Medio Football Development secara realtime."
   />
   <meta
     property="og:image"
@@ -44,26 +41,24 @@
   <meta property="og:site_name" content="Medio Football Development" />
   <meta property="og:locale" content="id_ID" />
 
-  <!-- Twitter / X Card -->
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="Medio Football Development - Content Calendar System" />
   <meta
     name="twitter:description"
-    content="Content Calendar System untuk mengelola konten Medio Football Development secara realtime."
+    content="Content Calendar System untuk mengelola jadwal posting dan shooting plan Medio Football Development secara realtime."
   />
   <meta
     name="twitter:image"
     content="https://tigadigital.github.io/Medio-Football-Development-Content/assets/seo-medio.png"
   />
 
-  <!-- Structured Data -->
   <script type="application/ld+json">
   {
     "@context": "https://schema.org",
     "@type": "WebApplication",
     "name": "Medio Football Development - Content Calendar System",
     "url": "https://tigadigital.github.io/Medio-Football-Development-Content/",
-    "description": "Content Calendar System Medio Football Development untuk mengelola jadwal, database konten, kalender posting, workflow, dan analytics konten secara realtime.",
+    "description": "Content Calendar System Medio Football Development untuk mengelola jadwal, database konten, kalender posting, shooting calendar, workflow, dan analytics konten secara realtime.",
     "applicationCategory": "BusinessApplication",
     "operatingSystem": "Web",
     "image": "https://tigadigital.github.io/Medio-Football-Development-Content/assets/seo-medio.png",
@@ -74,7 +69,6 @@
   }
   </script>
 
-  <!-- Stylesheet -->
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
@@ -107,7 +101,10 @@
           <a href="#" data-page="database">🗂 Database Konten</a>
         </li>
         <li class="nav-item">
-          <a href="#" data-page="calendar">📅 Calendar</a>
+          <a href="#" data-page="calendar">📅 Content Calendar</a>
+        </li>
+        <li class="nav-item">
+          <a href="#" data-page="shooting">🎥 Shooting Calendar</a>
         </li>
         <li class="nav-item">
           <a href="#" data-page="kanban">📌 Kanban Workflow</a>
@@ -147,7 +144,6 @@
         </div>
       </header>
 
-      <!-- DASHBOARD -->
       <section class="page active" id="page-dashboard">
         <section class="grid stats-grid">
           <article class="card stat-card">
@@ -226,7 +222,6 @@
         </section>
       </section>
 
-      <!-- DATABASE -->
       <section class="page" id="page-database">
         <section class="card database-card">
           <div class="section-header">
@@ -274,12 +269,11 @@
         </section>
       </section>
 
-      <!-- CALENDAR -->
       <section class="page" id="page-calendar">
         <section class="card calendar-card">
           <div class="calendar-head">
             <div>
-              <h3 id="calendarTitle">Calendar</h3>
+              <h3 id="calendarTitle">Content Calendar</h3>
               <p>Konten muncul otomatis berdasarkan tanggal plan posting.</p>
             </div>
 
@@ -294,7 +288,25 @@
         </section>
       </section>
 
-      <!-- KANBAN -->
+      <section class="page" id="page-shooting">
+        <section class="card calendar-card">
+          <div class="calendar-head">
+            <div>
+              <h3 id="shootingCalendarTitle">Shooting Calendar</h3>
+              <p>Jadwal shooting otomatis H-4 dari plan posting untuk konten Reels, TikTok Video, dan YouTube Shorts.</p>
+            </div>
+
+            <div class="calendar-actions">
+              <button class="btn btn-outline" id="prevShootingMonthBtn">← Bulan Sebelumnya</button>
+              <button class="btn btn-primary" id="todayShootingBtn">Bulan Ini</button>
+              <button class="btn btn-outline" id="nextShootingMonthBtn">Bulan Berikutnya →</button>
+            </div>
+          </div>
+
+          <div class="calendar-grid" id="shootingCalendarGrid"></div>
+        </section>
+      </section>
+
       <section class="page" id="page-kanban">
         <section class="card kanban">
           <div class="section-header">
@@ -308,7 +320,6 @@
         </section>
       </section>
 
-      <!-- ANALYTICS -->
       <section class="page" id="page-analytics">
         <section class="card analytics-card">
           <div class="section-header">
@@ -337,7 +348,6 @@
         </section>
       </section>
 
-      <!-- SETTINGS -->
       <section class="page" id="page-settings">
         <section class="card settings-card">
           <div class="section-header">
@@ -400,7 +410,6 @@
     </main>
   </div>
 
-  <!-- DETAIL MODAL -->
   <div class="modal-overlay" id="detailModal">
     <div class="modal-card detail-modal-card">
       <div class="modal-header">
@@ -427,6 +436,16 @@
         <div class="detail-row">
           <span>Plan Posting</span>
           <strong id="detailDate">-</strong>
+        </div>
+
+        <div class="detail-row" id="detailShootingRow">
+          <span>Shooting Plan</span>
+          <strong id="detailShootingDate">-</strong>
+        </div>
+
+        <div class="detail-row" id="detailShootingStatusRow">
+          <span>Status Shooting</span>
+          <strong id="detailShootingStatus">-</strong>
         </div>
 
         <div class="detail-row">
@@ -461,14 +480,13 @@
     </div>
   </div>
 
-  <!-- CONTENT FORM MODAL -->
   <div class="modal-overlay" id="contentModal">
     <div class="modal-card">
       <div class="modal-header">
         <div>
           <span class="modal-eyebrow">Medio Football Development</span>
           <h3 id="modalTitle">Tambah Konten</h3>
-          <p>Lengkapi detail konten untuk masuk ke database dan calendar.</p>
+          <p>Lengkapi detail konten untuk masuk ke database, content calendar, dan shooting calendar.</p>
         </div>
 
         <button class="modal-close" id="closeModalBtn" type="button">×</button>
