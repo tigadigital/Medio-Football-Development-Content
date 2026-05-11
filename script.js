@@ -41,6 +41,8 @@ const detailModal = document.getElementById("detailModal");
 const closeDetailModalBtn = document.getElementById("closeDetailModalBtn");
 const closeDetailBtn = document.getElementById("closeDetailBtn");
 const editFromDetailBtn = document.getElementById("editFromDetailBtn");
+const copyCaptionBtn = document.getElementById("copyCaptionBtn");
+const copyFeedback = document.getElementById("copyFeedback");
 
 const detailTitle = document.getElementById("detailTitle");
 const detailMeta = document.getElementById("detailMeta");
@@ -162,6 +164,8 @@ const monthNames = [
 
 const dayNames = ["Sen", "Sel", "Rab", "Kam", "Jum", "Sab", "Min"];
 
+const STATUS_OPTIONS = ["Draft", "Review", "Scheduled", "Posted"];
+
 const SHOOTING_OFFSET_DAYS = 4;
 const DEFAULT_SHOOTING_HOUR = 9;
 const DEFAULT_SHOOTING_MINUTE = 0;
@@ -209,6 +213,10 @@ function getContentRef(id) {
 function isVideoContentType(type) {
   const videoTypes = ["Reels", "TikTok Video", "YouTube Shorts"];
   return videoTypes.includes(type);
+}
+
+function isCaptionRequiredStatus(status) {
+  return status === "Scheduled" || status === "Posted";
 }
 
 function formatDateToInputValue(date) {
@@ -472,6 +480,27 @@ function escapeHTML(value) {
     .replaceAll("'", "&#039;");
 }
 
+function renderStatusOptions(selectedStatus) {
+  return STATUS_OPTIONS.map((status) => {
+    const selected = status === selectedStatus ? "selected" : "";
+    return `<option value="${status}" ${selected}>${status}</option>`;
+  }).join("");
+}
+
+function renderStatusSelect(contentId, selectedStatus) {
+  return `
+    <select
+      class="status-select"
+      onclick="event.stopPropagation()"
+      onmousedown="event.stopPropagation()"
+      onkeydown="event.stopPropagation()"
+      onchange="event.stopPropagation(); updateContentStatus('${contentId}', this.value)"
+    >
+      ${renderStatusOptions(selectedStatus)}
+    </select>
+  `;
+}
+
 function openModal(mode = "add") {
   contentModal.classList.add("show");
   document.body.classList.add("modal-open");
@@ -526,6 +555,10 @@ function openDetailModal(id) {
   detailCaption.textContent =
     selectedContent.caption || "Belum ada isi konten atau caption.";
 
+  if (copyFeedback) {
+    copyFeedback.classList.remove("show");
+  }
+
   detailModal.classList.add("show");
   document.body.classList.add("modal-open");
 }
@@ -534,6 +567,10 @@ function closeDetailModal() {
   detailModal.classList.remove("show");
   document.body.classList.remove("modal-open");
   selectedDetailId = null;
+
+  if (copyFeedback) {
+    copyFeedback.classList.remove("show");
+  }
 }
 
 function editSelectedDetail() {
@@ -543,6 +580,46 @@ function editSelectedDetail() {
 
   closeDetailModal();
   editContent(contentId);
+}
+
+async function copySelectedCaption() {
+  if (!selectedDetailId) return;
+
+  const selectedContent = contentData.find((content) => content.id === selectedDetailId);
+
+  if (!selectedContent) return;
+
+  const caption = selectedContent.caption || "";
+
+  if (!caption.trim()) {
+    alert("Caption masih kosong, tidak ada yang bisa disalin.");
+    return;
+  }
+
+  try {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      await navigator.clipboard.writeText(caption);
+    } else {
+      const tempTextArea = document.createElement("textarea");
+      tempTextArea.value = caption;
+      document.body.appendChild(tempTextArea);
+      tempTextArea.select();
+      document.execCommand("copy");
+      tempTextArea.remove();
+    }
+
+    if (copyFeedback) {
+      copyFeedback.textContent = "Caption berhasil disalin.";
+      copyFeedback.classList.add("show");
+
+      setTimeout(() => {
+        copyFeedback.classList.remove("show");
+      }, 1800);
+    }
+  } catch (error) {
+    console.error(error);
+    alert("Gagal menyalin caption. Silakan copy manual dari detail konten.");
+  }
 }
 
 function formatDateTime(dateValue) {
@@ -667,7 +744,6 @@ function renderTable() {
   filteredData.forEach((content) => {
     const formattedDate = formatDateTime(content.date);
     const typeBadgeClass = getTypeBadgeClass(content.type);
-    const statusBadgeClass = getStatusBadgeClass(content.status);
 
     const shootingInfo =
       isVideoContentType(content.type) && content.shootingDate
@@ -698,7 +774,7 @@ function renderTable() {
       </td>
       <td>${escapeHTML(content.pillar)}</td>
       <td>
-        <span class="badge ${statusBadgeClass}">${escapeHTML(content.status)}</span>
+        ${renderStatusSelect(content.id, content.status)}
       </td>
       <td>${escapeHTML(content.pic || "Admin MFD")}</td>
       <td>
@@ -722,7 +798,7 @@ function renderTable() {
           <p>${escapeHTML(content.platform)} • ${escapeHTML(content.type)}</p>
         </div>
 
-        <span class="badge ${statusBadgeClass}">${escapeHTML(content.status)}</span>
+        <span class="badge ${getStatusBadgeClass(content.status)}">${escapeHTML(content.status)}</span>
       </div>
 
       <div class="mobile-card-meta">
@@ -741,6 +817,11 @@ function renderTable() {
             `
             : ""
         }
+
+        <div>
+          <span>Status</span>
+          ${renderStatusSelect(content.id, content.status)}
+        </div>
 
         <div>
           <span>Pilar</span>
@@ -1015,6 +1096,11 @@ function renderKanban() {
         <div class="task-meta">
           <span>${escapeHTML(content.platform)}</span>
           <span>${escapeHTML(content.pic || "Admin MFD")}</span>
+        </div>
+
+        <div class="task-status-update" onclick="event.stopPropagation()" onmousedown="event.stopPropagation()">
+          <span>Ubah Status</span>
+          ${renderStatusSelect(content.id, content.status)}
         </div>
 
         <div class="task-actions">
@@ -1371,6 +1457,12 @@ function validateForm() {
     return false;
   }
 
+  if (isCaptionRequiredStatus(statusInput.value) && !captionInput.value.trim()) {
+    alert("Caption wajib diisi jika status konten adalah Scheduled atau Posted.");
+    captionInput.focus();
+    return false;
+  }
+
   return true;
 }
 
@@ -1442,6 +1534,34 @@ async function handleSubmit(event) {
   } finally {
     saveContentBtn.disabled = false;
     saveContentBtn.textContent = previousButtonText;
+  }
+}
+
+async function updateContentStatus(id, newStatus) {
+  const selectedContent = contentData.find((content) => content.id === id);
+
+  if (!selectedContent) return;
+
+  if (selectedContent.status === newStatus) return;
+
+  if (isCaptionRequiredStatus(newStatus) && !selectedContent.caption?.trim()) {
+    alert("Caption wajib diisi sebelum status diubah menjadi Scheduled atau Posted.");
+    renderAll();
+    return;
+  }
+
+  const updatedContent = {
+    ...selectedContent,
+    status: newStatus
+  };
+
+  try {
+    await saveContentToFirebase(updatedContent);
+  } catch (error) {
+    console.error(error);
+    alert("Gagal mengubah status konten.");
+    renderAll();
+    setFirebaseStatus("offline", "Firebase: gagal update status");
   }
 }
 
@@ -1618,7 +1738,7 @@ function backupJson() {
 
   const backupData = {
     app: "Medio Football Development Content Calendar",
-    version: "2.2-realtime-shooting-kanban-pagination",
+    version: "2.4-status-spacing-kanban-fix",
     exportedAt: new Date().toISOString(),
     totalData: contentData.length,
     data: contentData
@@ -1749,6 +1869,7 @@ cancelEditBtn.addEventListener("click", closeModal);
 closeDetailModalBtn.addEventListener("click", closeDetailModal);
 closeDetailBtn.addEventListener("click", closeDetailModal);
 editFromDetailBtn.addEventListener("click", editSelectedDetail);
+copyCaptionBtn.addEventListener("click", copySelectedCaption);
 
 contentModal.addEventListener("click", (event) => {
   if (event.target === contentModal) {
@@ -1800,6 +1921,7 @@ window.editContent = editContent;
 window.deleteContent = deleteContent;
 window.openDetailModal = openDetailModal;
 window.changeKanbanPage = changeKanbanPage;
+window.updateContentStatus = updateContentStatus;
 
 renderAll();
 updateTopbarByPage("dashboard");

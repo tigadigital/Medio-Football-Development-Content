@@ -639,7 +639,7 @@ td small {
 
 .content-table th:nth-child(1),
 .content-table td:nth-child(1) {
-  width: 44%;
+  width: 38%;
 }
 
 .content-table th:nth-child(2),
@@ -664,12 +664,14 @@ td small {
 
 .content-table th:nth-child(6),
 .content-table td:nth-child(6) {
-  width: 7%;
+  width: 11%;
+  padding-right: 18px;
 }
 
 .content-table th:nth-child(7),
 .content-table td:nth-child(7) {
-  width: 6%;
+  width: 8%;
+  padding-left: 10px;
 }
 
 .content-table th:nth-child(8),
@@ -742,6 +744,43 @@ td small {
 .action-btn:disabled {
   opacity: 0.45;
   cursor: not-allowed;
+}
+
+.status-select {
+  width: 100%;
+  max-width: 132px;
+  min-width: 112px;
+  padding: 8px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: #ffffff;
+  color: #111111;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.content-table .status-select {
+  display: block;
+}
+
+.status-select:focus {
+  border-color: var(--gold);
+  box-shadow: 0 0 0 3px rgba(219, 182, 102, 0.16);
+}
+
+.task-status-update {
+  margin-top: 10px;
+}
+
+.task-status-update span {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.35px;
 }
 
 .empty-state {
@@ -1004,6 +1043,22 @@ td small {
 
 .detail-actions {
   margin-top: 18px;
+}
+
+.copy-feedback {
+  display: none;
+  margin-top: 14px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: rgba(219, 182, 102, 0.14);
+  border: 1px solid rgba(219, 182, 102, 0.35);
+  color: #6d5117;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.copy-feedback.show {
+  display: block;
 }
 
 .form-grid {
@@ -1589,6 +1644,10 @@ textarea {
 
   .kanban-pagination span {
     text-align: center;
+  }
+
+  .status-select {
+    max-width: 100%;
   }
 }
 
